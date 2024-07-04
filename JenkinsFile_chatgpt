@@ -1,0 +1,102 @@
+
+
+
+
+
+pipeline {
+    agent any
+    
+    stages {
+        stage('ContinuousDownload') {
+            steps {
+                script {
+                    try {
+                        git 'https://github.com/intelliqittrainings/maven.git'
+                    } catch(Exception e1) {
+                        mail to: 'git.admin@gmail.com',
+                             subject: 'Download Failed',
+                             body: 'Jenkins is unable to download from the GitHub repository.'
+                        error("Failed to download repository")
+                    }
+                }
+            }
+        }
+        
+        stage('ContinuousBuild') {
+            steps {
+                script {
+                    try {
+                        sh 'mvn package'
+                    } catch(Exception e2) {
+                        mail to: 'qa.team@gmail.com',
+                             subject: 'Build Failed',
+                             body: 'Jenkins is unable to create an artifact from the code.'
+                        error("Failed to build the project")
+                    }
+                }
+            }
+        }
+        
+        stage('ContinuousDeploy QA') {
+            steps {
+                script {
+                    try {
+                        deploy adapters: [tomcat9(credentialsId: 'd8926d77-8f7a-4829-9204-a804ea5ed4a9',
+                                                 url: 'http://172.31.14.3:8080')],
+                               contextPath: 'testapp',
+                               war: '**/*.war'
+                    } catch(Exception e3) {
+                        mail to: 'qa.team@gmail.com',
+                             subject: 'Deploy failed',
+                             body: 'Jenkins is unable to deploy into Tomcat on the QA servers.'
+                        error("Failed to deploy to QA servers")
+                    }
+                }
+            }
+        }
+        
+        stage('Functional Testing') {
+            steps {
+                script {
+                    try {
+                        git 'https://github.com/intelliqittrainings/FunctionalTesting.git'
+                        sh 'java -jar /var/lib/jenkins/workspace/Declarativepipline/testing.jar'
+                    } 
+                    catch(Exception e4) {
+                        mail to: 'qa.team@gmail.com',
+                             subject: 'Functional Testing Failed',
+                             body: 'Jenkins is unable to run functional tests.'
+                    }
+                }
+            }
+        }
+        
+        stage('ContinuousDeploy Prod') {
+            steps {
+                script {
+                    try {
+                        deploy adapters: [tomcat9(credentialsId: 'd8926d77-8f7a-4829-9204-a804ea5ed4a9',
+                                                 url: 'http://172.31.4.152:8080')],
+                               contextPath: 'prodapp',
+                               war: '**/*.war'
+                    } catch(Exception e5) {
+                        mail to: 'testing.team@gmail.com',
+                             subject: 'Deployment to Production Failed',
+                             body: 'Jenkins is unable to deploy into Tomcat on the Production servers.'
+                        error("Failed to deploy to production servers")
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+
+
+
+
+
+
+
+
